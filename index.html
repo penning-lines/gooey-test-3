@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset='utf-8' />
+	<title>Basic</title>
+</head>
+<body>
+	<div id="container"></div>
+	<svg xmlns="http://www.w3.org/2000/svg" version="1.1">
+	    <defs>
+	        <filter id="gooey">
+	            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="gooey"/>
+                <feComposite in="SourceGraphic" in2="gooey" operator="atop"/>
+	        </filter>
+	        <filter id="gooey2">
+	            <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 9 -3.5" result="gooey2"/>
+                <feComposite in="SourceGraphic" in2="gooey2" operator="atop"/>
+	        </filter>	    </defs>
+	</svg>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js' charset='utf-8'></script>
+	<script>
+	    var svg = d3.select('#container').append('svg').attr('width',1000).attr('height',600);
+	    var circleSvg = svg.append('g').style('filter','url(#gooey2)');
+	    var maxParticles = 100;
+	    var spawnParticleId = 0;
+	    var spawnParticleDelay = 100;
+	    var gravity = 98.1;
+	    var mx=-100, my=-100;
+	    var thresh = 100*100;
+	    var dampening = 0.80;
+	    var particleSize = 10;
+	    var particles = [];
+	    var lastTime = new Date().getTime();
+	    var lastSpawnTime = new Date().getTime();
+	    var noise = function(amount){
+	        return Math.random()*amount;
+	    };
+	    var particle = function(x,y,vx,vy){
+	        this.x = x;
+	        this.y = y;
+	        this.vx = vx;
+	        this.vy = vy;
+	    };
+	    particle.prototype.update = function(delta){
+	        var dx, dy, d, c;
+	        dx = (mx-this.x);
+	        dy = (my-this.y);
+	        d = dx*dx+dy*dy;
+	        if(d<thresh && (this.vx*dx+this.vy*dy)>0) {
+	           // this.vx = delta*-dx*Math.sqrt(thresh-d);
+	           // this.vy = delta*-dy*Math.sqrt(thresh-d);
+	           c = 2*(this.vx * dx+this.vy * dy)/d;
+	           this.vx=-dampening*(c*dx-this.vx);
+	           this.vy=-dampening*(c*dy-this.vy);
+	           //this.vx-=(c*dx);
+	           //this.vy-=(c*dy);
+	        }
+	        this.vy += delta*gravity;
+	        this.x += this.vx * delta;
+	        this.y += this.vy * delta;
+	        
+	    }
+	    var update = function(){
+	        var currTime = new Date().getTime();
+	        var delta = (currTime-lastTime)/1000;
+	        var i;
+	        requestAnimationFrame(update);
+	        while(lastSpawnTime + spawnParticleDelay < currTime) {
+	            particles[spawnParticleId] = new particle(-particleSize,noise(40)+100,noise(50)+30,noise(-30)-20);
+	            lastSpawnTime+=spawnParticleDelay;
+	            spawnParticleId = (spawnParticleId+1)%maxParticles;
+	            
+	        }
+	        for(i=0;i<particles.length;i++){
+	            particles[i].update(delta);
+	        }
+	        var circles = circleSvg.selectAll('circle').data(particles);
+	        circles.exit().remove();
+	        circles.enter().append('circle').attr('r',particleSize);
+	        circles.attr('cx',function(d){return d.x;}).attr('cy',function(d){return d.y});
+	        lastTime = currTime;
+	    }
+	    d3.select('svg').on('mousemove', function(){
+	        var m = d3.mouse(this);
+	        mx = m[0];
+	        my = m[1];
+	    });
+	    update();
+	</script>
+</body>
+</html>
